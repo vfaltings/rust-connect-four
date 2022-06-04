@@ -1,3 +1,9 @@
 fn main() {
-    println!("Hello, world!");
+    setup();
+
+    loop {
+        play_one_round();
+        check_if_over();
+        display_board();
+    }
 }
