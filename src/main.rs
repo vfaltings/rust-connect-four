@@ -126,19 +126,13 @@ fn get_user_col() -> usize {
 
 fn put_piece(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], col: usize, val: i32) -> Result<(usize, usize), &str> {
     for (i, row) in board.iter().enumerate() {
-        for (j, elem) in row.iter().enumerate() {
-            if j != col {
-                continue;
-            }
-
-            if elem == &0 {
-                board[i][j] = val;
-                return Ok((i, j));
-            }
+        if row[col] == 0 {
+            board[i][col] = val;
+            return Ok((i, col));
         }
     }
 
-    Err("Could not play")
+    Err("Column full")
 }
 
 fn display_board(board: &[[i32; BOARD_SIZE]; BOARD_SIZE]) {
