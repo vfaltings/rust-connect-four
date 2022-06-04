@@ -7,7 +7,38 @@ fn main() {
     let mut gameboard = [[0; BOARD_SIZE]; BOARD_SIZE];
     display_board(&gameboard);
 
-    let col = get_user_col();
+    loop {
+        if play(&mut gameboard, 1) {
+            break;
+        }
+        if play(&mut gameboard, 2) {
+            break;
+        }
+    }
+}
+
+fn play(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], faction: i32) -> bool {
+    println!("Now playing: player {} ({})",
+        faction,
+        if faction == 1 {'X'} else {'O'});
+    loop {
+        let col = get_user_col();
+        match put_piece(board, col, faction) {
+            Ok(last_played) => {
+                display_board(board);
+                if check_win(board, last_played) {
+                    println!("Congrats player {}", faction);
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            Err(_) => {
+                println!("That column is full, try again");
+                continue
+            }
+        }
+    }
 }
 
 fn check_win(board: &[[i32; BOARD_SIZE]; BOARD_SIZE], last_played: (usize, usize)) -> bool {
@@ -95,7 +126,7 @@ fn get_user_col() -> usize {
 
 fn put_piece(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], col: usize, val: i32) -> Result<(usize, usize), &str> {
     for (i, row) in board.iter().enumerate() {
-        for (j, elem) in row.iter().rev().enumerate() {
+        for (j, elem) in row.iter().enumerate() {
             if j != col {
                 continue;
             }
