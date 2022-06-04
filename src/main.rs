@@ -8,7 +8,11 @@ fn main() {
 fn display_board(board: &[[i32; BOARD_SIZE]; BOARD_SIZE]) {
     for row in board {
         for elem in row {
-            print!("{} ", elem);
+            match elem {
+                1 => print!("X "),
+                2 => print!("O "),
+                _ => print!("- "),
+            }
         }
         println!();
     }
