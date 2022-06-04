@@ -1,14 +1,62 @@
 use std::io;
+use std::cmp;
 
 const BOARD_SIZE: usize = 10;
 
 fn main() {
     let mut gameboard = [[0; BOARD_SIZE]; BOARD_SIZE];
+    display_board(&gameboard);
 
     let col = get_user_col();
-    if put_piece(&mut gameboard, col, 1) {
-        display_board(&gameboard);
+}
+
+fn check_win(board: &[[i32; BOARD_SIZE]; BOARD_SIZE], last_played: (usize, usize)) -> bool {
+    let (i, j) = last_played;
+    let faction = board[i][j];
+
+    // Check horizontal
+    let from = cmp::max(0, j-3);
+    let to = cmp::min(BOARD_SIZE-1, j+3);
+    let mut count = 0;
+    for j in from..=to {
+        if board[i][j] == faction {
+            count += 1;
+        } else {
+            if count >= 4 {
+                break;
+            } else {
+                count = 0;
+            }
+        }
     }
+
+    if count >= 4 {
+        return true;
+    }
+
+    // Check verical
+    let from = cmp::max(0, i-3);
+    let to = cmp::min(BOARD_SIZE-1, i+3);
+    let mut count = 0;
+    for i in from..=to {
+        if board[i][j] == faction {
+            count += 1;
+        } else {
+            if count >= 4 {
+                break;
+            } else {
+                count = 0;
+            }
+        }
+    }
+
+    if count >= 4 {
+        return true;
+    }
+
+    // Check diagonal
+    // TODO
+    return false;
 }
 
 fn get_user_col() -> usize {
@@ -45,7 +93,7 @@ fn get_user_col() -> usize {
     col
 }
 
-fn put_piece(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], col: usize, val: i32) -> bool {
+fn put_piece(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], col: usize, val: i32) -> Result<(usize, usize), &str> {
     for (i, row) in board.iter().enumerate() {
         for (j, elem) in row.iter().rev().enumerate() {
             if j != col {
@@ -54,12 +102,12 @@ fn put_piece(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], col: usize, val: i32) 
 
             if elem == &0 {
                 board[i][j] = val;
-                return true;
+                return Ok((i, j));
             }
         }
     }
 
-    false
+    Err("Could not play")
 }
 
 fn display_board(board: &[[i32; BOARD_SIZE]; BOARD_SIZE]) {
