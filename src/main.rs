@@ -46,6 +46,18 @@ impl Game {
         }
     }
 
+    fn drop_piece(&mut self, col: usize, faction: Faction) {
+        for (i, row) in self.board.iter().enumerate() {
+            match row[i] {
+                Some(_) => continue,
+                None => {
+                    self.board[i][col] = Some(faction);
+                    break
+                }
+            }
+        }
+    }
+
     fn display(&self) {
         for (i, row) in self.board.iter().enumerate().rev() {
             for elem in row {
@@ -60,6 +72,7 @@ impl Game {
         for i in 0..BOARD_SIZE {
             print!("{:<2} ", i);
         }
+        println!();
     }
 }
 
