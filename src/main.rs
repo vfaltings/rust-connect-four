@@ -99,12 +99,9 @@ impl Game {
         let mut found = false;
         let (mut i, mut j) = (0, 0);
         for (_i, row) in self.board.iter().enumerate() {
-            match row[col] {
-                Some(_) => continue,
-                None => {
-                    found = true;
-                    (i, j) = (_i, col);
-                }
+            if let None = row[col] {
+                found = true;
+                (i, j) = (_i, col);
             }
         }
 
@@ -115,7 +112,7 @@ impl Game {
 
             self.free_spots -= 1;
 
-            if false {
+            if self.check_won(i, j) {
                 self.over = true;
                 self.winner = Some(self.next_index);
             } else if self.free_spots == 0 {
