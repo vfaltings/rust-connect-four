@@ -1,5 +1,6 @@
 use std::fmt;
 use std::fmt::Display;
+use std::fmt::Debug;
 use std::io;
 use std::cmp;
 use colored::Colorize;
@@ -7,36 +8,75 @@ use colored::Color;
 
 // Size of the board, must be <= 100
 // or the column index display will be wonky
-const BOARD_SIZE: usize = 10;
+const BOARD_SIZE: usize = 20;
 const NUM_PLAYERS: usize = 2;
 
-struct Player {
-    name: String,
+#[derive(Debug, Copy, Clone)]
+struct Faction {
     symbol: char,
     color: Color,
 }
 
-impl Display for Player {
+impl Display for Faction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", String::from(self.symbol).color(self.color))
+        write!(f, "{}", String::from(self.symbol).color(self.color) )
     }
 }
 
+#[derive(Debug)]
+struct Player {
+    name: String,
+    faction: Faction
+}
+
 struct Game {
-    board: [[i32; BOARD_SIZE]; BOARD_SIZE],
+    board: [[Option<Faction>; BOARD_SIZE]; BOARD_SIZE],
     players: [Player; NUM_PLAYERS],
     over: bool,
     winner: Option<Player>
 }
 
+impl Game {
+    fn with_players(players: [Player; NUM_PLAYERS]) -> Game {
+        Game {
+            board: [[None; BOARD_SIZE]; BOARD_SIZE],
+            players,
+            over: false,
+            winner: None,
+        }
+    }
+
+    fn display(&self) {
+        for (i, row) in self.board.iter().enumerate().rev() {
+            for elem in row {
+                match elem {
+                    Some(f) => print!("{}  ", f),
+                    None => print!("-  "),
+                }
+            }
+            println!()
+        }
+
+        for i in 0..BOARD_SIZE {
+            print!("{:<2} ", i);
+        }
+    }
+}
+
 fn main() {
     let p1 = Player {
-        name: String::from("Victor"),
-        symbol: 'V',
-        color: Color::Blue,
+        name: String::from("Player1"),
+        faction: Faction { symbol: 'X', color: Color::Red },
     };
 
-    println!("{}", p1);
+    let p2 = Player {
+        name: String::from("Player2"),
+        faction: Faction { symbol: 'O', color: Color::Blue },
+    };
+
+    let mut game = Game::with_players([p1, p2]);
+
+    game.display();
 }
 
 fn play(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], faction: i32) -> bool {
