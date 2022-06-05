@@ -4,7 +4,7 @@ use ncurses::*;
 
 #[derive(Debug)]
 enum Direction {
-    Up, Down, Left, Right,
+    Left, Right,
 }
 
 #[derive(Debug)]
@@ -15,7 +15,7 @@ enum Action {
 
 struct Game {
     board: [[i32; Self::COLS]; Self::ROWS],
-    cursor: (i32, i32),
+    cursor_col: i32,
 }
 
 impl Game {
@@ -29,6 +29,7 @@ impl Game {
 
         loop {
             clear();
+            self.draw_board();
             self.draw_ui();
             refresh();
 
@@ -44,16 +45,15 @@ impl Game {
     }
 
     fn move_cursor(&mut self, direction: Direction) {
-        let (mut x, mut y) = self.cursor;
-
         match direction {
-            Direction::Up => y = if y > 0 {y-1} else {y},
-            Direction::Down => y = y+1,
-            Direction::Left => x = if x > 0 {x-1} else {x},
-            Direction::Right => x = x+1,
+            Direction::Left if self.cursor_col > 1 => {
+                self.cursor_col -= 2;
+            }
+            Direction::Right if self.cursor_col < (2*Game::COLS-1).try_into().unwrap() => {
+                self.cursor_col += 2;
+            }
+            _ => (),
         }
-
-        self.cursor = (x, y);
     }
 
     fn get_input() -> Action {
@@ -62,9 +62,7 @@ impl Game {
 
             match c as u8 as char {
                 'q' => return Action::Quit,
-                'w' => return Action::Move(Direction::Up),
                 'a' => return Action::Move(Direction::Left),
-                's' => return Action::Move(Direction::Down),
                 'd' => return Action::Move(Direction::Right),
                 _ => (),
             }
@@ -72,19 +70,26 @@ impl Game {
     }
 
     fn draw_ui(&self) {
-        let (x, y) = self.cursor;
-        mv(y, x);
+        mv(0, self.cursor_col);
     }
 
     fn draw_board(&self) {
-        
+        mv(1, 0);
+        for row in self.board {
+            addch(ACS_VLINE());
+            for elem in row {
+                addstr(&format!("{}", elem));
+                addch(ACS_VLINE());
+            }
+            addch('\n' as u32);
+        }
     }
 }
 
 fn main() {
     let mut game = Game {
         board: [[0; Game::COLS]; Game::ROWS],
-        cursor: (0, 0),
+        cursor_col: 1,
     };
 
     game.play();
