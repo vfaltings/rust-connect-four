@@ -57,8 +57,9 @@ impl Game {
     }
 
     fn get_input() -> Action {
-        let mut c = getch();
         loop {
+            let c = getch();
+
             match c as u8 as char {
                 'q' => return Action::Quit,
                 'w' => return Action::Move(Direction::Up),
@@ -67,8 +68,6 @@ impl Game {
                 'd' => return Action::Move(Direction::Right),
                 _ => (),
             }
-
-            c = getch();
         }
     }
 
