@@ -1,20 +1,42 @@
+use std::fmt;
+use std::fmt::Display;
 use std::io;
 use std::cmp;
+use colored::Colorize;
+use colored::Color;
 
+// Size of the board, must be <= 100
+// or the column index display will be wonky
 const BOARD_SIZE: usize = 10;
+const NUM_PLAYERS: usize = 2;
+
+struct Player {
+    name: String,
+    symbol: char,
+    color: Color,
+}
+
+impl Display for Player {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", String::from(self.symbol).color(self.color))
+    }
+}
+
+struct Game {
+    board: [[i32; BOARD_SIZE]; BOARD_SIZE],
+    players: [Player; NUM_PLAYERS],
+    over: bool,
+    winner: Option<Player>
+}
 
 fn main() {
-    let mut gameboard = [[0; BOARD_SIZE]; BOARD_SIZE];
-    display_board(&gameboard);
+    let p1 = Player {
+        name: String::from("Victor"),
+        symbol: 'V',
+        color: Color::Blue,
+    };
 
-    loop {
-        if play(&mut gameboard, 1) {
-            break;
-        }
-        if play(&mut gameboard, 2) {
-            break;
-        }
-    }
+    println!("{}", p1);
 }
 
 fn play(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], faction: i32) -> bool {
