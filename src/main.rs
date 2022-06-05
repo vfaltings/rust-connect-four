@@ -6,11 +6,6 @@ use std::cmp;
 use colored::Colorize;
 use colored::Color;
 
-// Size of the board, must be <= 100
-// or the column index display will be wonky
-const BOARD_SIZE: usize = 20;
-const NUM_PLAYERS: usize = 2;
-
 #[derive(Debug, Copy, Clone)]
 struct Faction {
     symbol: char,
@@ -30,36 +25,113 @@ struct Player {
 }
 
 struct Game {
-    board: [[Option<Faction>; BOARD_SIZE]; BOARD_SIZE],
-    players: [Player; NUM_PLAYERS],
+    board: [[Option<Faction>; Game::COLUMNS]; Game::ROWS],
+    players: Vec<Player>,
     over: bool,
-    winner: Option<Player>
+    winner: Option<usize>,  // The index of the winning player, if there is one
+    next_index: usize,      // The index of the player whose turn it is
+    free_spots: usize,      // The number of free spots in the board
 }
 
 impl Game {
-    fn with_players(players: [Player; NUM_PLAYERS]) -> Game {
+    const ROWS: usize = 3;
+    const COLUMNS: usize = 3;
+    
+    fn with_players(players: Vec<Player>) -> Game {
         Game {
-            board: [[None; BOARD_SIZE]; BOARD_SIZE],
+            board: [[None; Game::COLUMNS]; Game::ROWS],
             players,
             over: false,
             winner: None,
+            next_index: 0,
+            free_spots: Game::COLUMNS * Game::ROWS,
         }
     }
 
-    fn drop_piece(&mut self, col: usize, faction: Faction) {
-        for (i, row) in self.board.iter().enumerate() {
-            match row[i] {
+    fn play(&mut self) {
+        while !self.over {
+            self.display();
+            let col = Game::ask_col(&self.players[self.next_index]);
+
+            self.drop_piece(col);
+        }
+
+        self.display();
+
+        match self.winner {
+            Some(winner) => println!("Congrats {}!", self.players[winner].name),
+            None => println!("Game over!"),
+        }
+    }
+
+    fn ask_col(player: &Player) -> usize {
+        println!(
+            "It is {}'s turn, please pick a column (between 0 and {})", 
+            player.name,
+            Game::COLUMNS-1
+        );
+
+        loop {
+            let mut col = String::new();
+            
+            io::stdin()
+                .read_line(&mut col)
+                .expect("Error reading line");
+
+            let col: usize = match col.trim().parse() {
+                Ok(v) => v,
+                Err(_) => {
+                    println!("Enter a number!");
+                    continue
+                }
+            };
+
+            if col >= Game::COLUMNS {
+                println!("Too high!");
+                continue
+            }
+
+            return col
+        }
+    }
+
+    fn drop_piece(&mut self, col: usize) {
+        let mut found = false;
+        let (mut i, mut j) = (0, 0);
+        for (_i, row) in self.board.iter().enumerate() {
+            match row[col] {
                 Some(_) => continue,
                 None => {
-                    self.board[i][col] = Some(faction);
-                    break
+                    found = true;
+                    (i, j) = (_i, col);
                 }
             }
         }
+
+        if found {
+            self.board[i][j] = Some(
+                self.players[self.next_index].faction
+            );
+
+            self.free_spots -= 1;
+
+            if false {
+                self.over = true;
+                self.winner = Some(self.next_index);
+            } else if self.free_spots == 0 {
+                self.over = true;
+            }
+            
+            self.next_index = (self.next_index + 1) % self.players.len();
+        }
+    }
+
+    fn check_won(&self, row: usize, col: usize) -> bool {
+        todo!()
     }
 
     fn display(&self) {
-        for (i, row) in self.board.iter().enumerate().rev() {
+        for row in self.board {
             for elem in row {
                 match elem {
                     Some(f) => print!("{}  ", f),
@@ -69,7 +141,7 @@ impl Game {
             println!()
         }
 
-        for i in 0..BOARD_SIZE {
+        for i in 0..Game::COLUMNS {
             print!("{:<2} ", i);
         }
         println!();
@@ -78,152 +150,16 @@ impl Game {
 
 fn main() {
     let p1 = Player {
-        name: String::from("Player1"),
+        name: String::from("Player 1"),
         faction: Faction { symbol: 'X', color: Color::Red },
     };
 
     let p2 = Player {
-        name: String::from("Player2"),
+        name: String::from("Player 2"),
         faction: Faction { symbol: 'O', color: Color::Blue },
     };
 
-    let mut game = Game::with_players([p1, p2]);
+    let mut game = Game::with_players(Vec::from([p1, p2]));
 
-    game.display();
-}
-
-fn play(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], faction: i32) -> bool {
-    println!("Now playing: player {} ({})",
-        faction,
-        if faction == 1 {'X'} else {'O'});
-    loop {
-        let col = get_user_col();
-        match put_piece(board, col, faction) {
-            Ok(last_played) => {
-                display_board(board);
-                if check_win(board, last_played) {
-                    println!("Congrats player {}", faction);
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-            Err(_) => {
-                println!("That column is full, try again");
-                continue
-            }
-        }
-    }
-}
-
-fn check_win(board: &[[i32; BOARD_SIZE]; BOARD_SIZE], last_played: (usize, usize)) -> bool {
-    let (i, j) = last_played;
-    let faction = board[i][j];
-
-    // Check horizontal
-    let from = cmp::max(0, j-3);
-    let to = cmp::min(BOARD_SIZE-1, j+3);
-    let mut count = 0;
-    for j in from..=to {
-        if board[i][j] == faction {
-            count += 1;
-        } else {
-            if count >= 4 {
-                break;
-            } else {
-                count = 0;
-            }
-        }
-    }
-
-    if count >= 4 {
-        return true;
-    }
-
-    // Check verical
-    let from = cmp::max(0, i-3);
-    let to = cmp::min(BOARD_SIZE-1, i+3);
-    let mut count = 0;
-    for i in from..=to {
-        if board[i][j] == faction {
-            count += 1;
-        } else {
-            if count >= 4 {
-                break;
-            } else {
-                count = 0;
-            }
-        }
-    }
-
-    if count >= 4 {
-        return true;
-    }
-
-    // Check diagonal
-    // TODO
-    return false;
-}
-
-fn get_user_col() -> usize {
-    println!("Enter a column index (between 0 and {})", BOARD_SIZE-1);
-
-    let mut buf = String::new();
-    let mut col: usize;
-
-    loop {
-        buf.clear();
-        match io::stdin().read_line(&mut buf) {
-            Ok(_) => {}
-            Err(_) => {
-                println!("Error reading line, try again: ");
-                continue
-            }
-        }
-        
-        col = match buf.trim().parse() {
-            Ok(val) => val,
-            Err(_) => {
-                println!("Please enter a number!");
-                continue
-            }
-        };
-
-        if col < BOARD_SIZE {
-            break
-        } else {
-            println!("Please respect the bounds (0 to {})", BOARD_SIZE-1);
-        }
-    }
-
-    col
-}
-
-fn put_piece(board: &mut [[i32; BOARD_SIZE]; BOARD_SIZE], col: usize, val: i32) -> Result<(usize, usize), &str> {
-    for (i, row) in board.iter().enumerate() {
-        if row[col] == 0 {
-            board[i][col] = val;
-            return Ok((i, col));
-        }
-    }
-
-    Err("Column full")
-}
-
-fn display_board(board: &[[i32; BOARD_SIZE]; BOARD_SIZE]) {
-    for row in board.iter().rev() {
-        for elem in row {
-            match elem {
-                1 => print!("X  "),
-                2 => print!("O  "),
-                _ => print!("-  "),
-            }
-        }
-        println!();
-    }
-
-    for i in 0..BOARD_SIZE {
-        print!("{}  ", i);
-    }
-    println!();
+    game.play();
 }
