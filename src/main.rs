@@ -47,8 +47,8 @@ struct Game {
 }
 
 impl Game {
-    const ROWS: usize = 16;
-    const COLS: usize = 20;
+    const ROWS: usize = 13;
+    const COLS: usize = 16;
 
     fn play(&mut self) {
         self.init();
