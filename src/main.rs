@@ -150,7 +150,7 @@ impl Game {
 
         // Check first diagonal
         let start_diff = cmp::min(cmp::min(row, col), 3);
-        let nb = start_diff + 1 + cmp::min(cmp::min(Self::COLS - col, Self::ROWS - row), 3);
+        let nb = start_diff + 1 + cmp::min(cmp::min(Self::COLS - 1 - col, Self::ROWS - 1 - row), 3);
         let (start_row, start_col) = (row - start_diff, col - start_diff);
         let mut count = 0;
         for i in 0..nb {
@@ -167,8 +167,8 @@ impl Game {
         }
 
         // Check second diagonal
-        let start_diff = cmp::min(cmp::min(col, Self::ROWS - row), 3);
-        let nb = start_diff + 1 + cmp::min(cmp::min(row, Self::COLS - col), 3);
+        let start_diff = cmp::min(cmp::min(col, Self::ROWS - 1- row), 3);
+        let nb = start_diff + 1 + cmp::min(cmp::min(row, Self::COLS - 1 - col), 3);
         let (start_row, start_col) = (row + start_diff, col - start_diff);
         let mut count = 0;
         for i in 0..nb {
