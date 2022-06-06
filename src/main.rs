@@ -1,10 +1,12 @@
 extern crate ncurses;
 
 use ncurses::*;
+use std::cmp;
 
 #[derive(Debug)]
 enum Direction {
-    Left, Right,
+    Left,
+    Right,
 }
 
 #[derive(Debug)]
@@ -14,9 +16,10 @@ enum Action {
     Drop,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum Faction {
-    Blue, Red
+    Blue,
+    Red,
 }
 
 impl Faction {
@@ -30,14 +33,17 @@ impl Faction {
 
 #[derive(Debug, Clone, Copy)]
 enum Cell {
-    Some(Faction), Empty
+    Some(Faction),
+    Empty,
 }
 
 struct Game {
     board: [[Cell; Self::COLS]; Self::ROWS],
     cursor_col: i32,
-    free_spots: [i32; Self::COLS],
+    free_spots_in_col: [i32; Self::COLS],
+    free_spots: usize,
     curr_turn: Faction,
+    winner: Option<Faction>,
 }
 
 impl Game {
@@ -45,14 +51,7 @@ impl Game {
     const COLS: usize = 20;
 
     fn play(&mut self) {
-        initscr();
-        cbreak();
-        noecho();
-
-        start_color();
-
-        init_pair(1, COLOR_BLUE, COLOR_BLACK);
-        init_pair(2, COLOR_RED, COLOR_BLACK);
+        self.init();
 
         loop {
             clear();
@@ -65,30 +64,144 @@ impl Game {
             match input {
                 Action::Quit => break,
                 Action::Move(dir) => self.move_cursor(dir),
-                Action::Drop => self.drop_piece(),
+                Action::Drop => match self.drop_piece() {
+                    Some((row, col)) => {
+                        if self.free_spots == 0 || self.check_win(row, col, self.curr_turn) {
+                            break;
+                        }
+                        self.curr_turn = self.curr_turn.swap();
+                    }
+                    None => (),
+                },
             }
         }
+
+        clear();
+        self.draw_board();
+        match self.winner {
+            Some(f) => {
+                mv(0, 0);
+                match f {
+                    Faction::Blue => addstr_color("Blue Team", 1),
+                    Faction::Red => addstr_color("Red Team", 2),
+                }
+                addstr(" wins!");
+            }
+            None => {
+                mvprintw(0, 0, "Game over!");
+            }
+        }
+        mvprintw(1, 0, "Press any key to exit");
+
+        getch();
 
         endwin();
     }
 
-    fn has_space(&mut self, col: usize) -> bool {
-        self.free_spots[col] > 0
+    fn init(&self) {
+        initscr();
+        cbreak();
+        noecho();
+
+        start_color();
+
+        init_pair(1, COLOR_BLUE, COLOR_BLACK);
+        init_pair(2, COLOR_RED, COLOR_BLACK);
     }
 
-    fn drop_piece(&mut self) {
-        let col: usize = self.cursor_col.try_into().unwrap();
-        if !self.has_space(col) {
-            return
+    fn check_win(&mut self, row: usize, col: usize, faction: Faction) -> bool {
+        // Check horizontal
+        let from = if col > 3 { col - 3 } else { 0 };
+        let to = if col < Self::COLS - 1 - 3 {
+            col + 3
+        } else {
+            Self::COLS - 1
+        };
+        let mut count = 0;
+        for i in from..=to {
+            match self.board[row][i] {
+                Cell::Some(f) if f == faction => {
+                    count += 1;
+                    if count >= 4 {
+                        self.winner = Some(faction);
+                        return true;
+                    }
+                }
+                _ => count = 0,
+            }
         }
 
-        let row = self.free_spots[col];
+        // Check vertical
+        let from = if row > 3 { row - 3 } else { 0 };
+        let to = row;
+        let mut count = 0;
+        for i in from..=to {
+            match self.board[i][col] {
+                Cell::Some(f) if f == faction => {
+                    count += 1;
+                    if count >= 4 {
+                        self.winner = Some(faction);
+                        return true;
+                    };
+                }
+                _ => count = 0,
+            }
+        }
+
+        // Check first diagonal
+        let start_diff = cmp::min(cmp::min(row, col), 3);
+        let nb = start_diff + 1 + cmp::min(cmp::min(Self::COLS - col, Self::ROWS - row), 3);
+        let (start_row, start_col) = (row - start_diff, col - start_diff);
+        let mut count = 0;
+        for i in 0..nb {
+            match self.board[start_row + i][start_col + i] {
+                Cell::Some(f) if f == faction => {
+                    count += 1;
+                    if count >= 4 {
+                        self.winner = Some(faction);
+                        return true;
+                    };
+                }
+                _ => count = 0,
+            }
+        }
+
+        // Check second diagonal
+        let start_diff = cmp::min(cmp::min(col, Self::ROWS - row), 3);
+        let nb = start_diff + 1 + cmp::min(cmp::min(row, Self::COLS - col), 3);
+        let (start_row, start_col) = (row + start_diff, col - start_diff);
+        let mut count = 0;
+        for i in 0..nb {
+            match self.board[start_row - i][start_col + i] {
+                Cell::Some(f) if f == faction => {
+                    count += 1;
+                    if count >= 4 {
+                        self.winner = Some(faction);
+                        return true;
+                    };
+                }
+                _ => count = 0,
+            }
+        }
+
+        false
+    }
+
+    fn drop_piece(&mut self) -> Option<(usize, usize)> {
+        let col: usize = self.cursor_col.try_into().unwrap();
+        if self.free_spots_in_col[col] <= 0 {
+            return None;
+        }
+
+        let row = self.free_spots_in_col[col];
         let row: usize = row.try_into().unwrap();
         let row = Game::ROWS - row;
 
         self.board[row][col] = Cell::Some(self.curr_turn);
-        self.free_spots[col] -= 1;
-        self.curr_turn = self.curr_turn.swap();
+        self.free_spots_in_col[col] -= 1;
+        self.free_spots -= 1;
+
+        Some((row, col))
     }
 
     fn move_cursor(&mut self, direction: Direction) {
@@ -96,7 +209,7 @@ impl Game {
             Direction::Left if self.cursor_col > 0 => {
                 self.cursor_col -= 1;
             }
-            Direction::Right if self.cursor_col < (Game::COLS-1).try_into().unwrap() => {
+            Direction::Right if self.cursor_col < (Game::COLS - 1).try_into().unwrap() => {
                 self.cursor_col += 1;
             }
             _ => (),
@@ -120,31 +233,25 @@ impl Game {
     fn draw_ui(&self) {
         mvprintw(0, 0, "Currently playing: ");
         match self.curr_turn {
-            Faction::Blue => {
-                attron(COLOR_PAIR(1));
-                addstr("Blue");
-                attroff(COLOR_PAIR(1));
-            }
-            Faction::Red => {
-                attron(COLOR_PAIR(2));
-                addstr("Red");
-                attroff(COLOR_PAIR(2));
-            }
+            Faction::Blue => addstr_color("Blue", 1),
+            Faction::Red => addstr_color("Red", 2),
         }
 
-        mvprintw(LINES() - 2, 0, "Use A and D to move the cursor, SPACE to place a piece");
+        mvprintw(
+            LINES() - 2,
+            0,
+            "Use A and D to move the cursor, SPACE to place a piece",
+        );
         mvprintw(LINES() - 1, 0, "Press Q to exit");
 
         let col: usize = self.cursor_col.try_into().unwrap();
-        mv(
-            self.free_spots[col]*2+1, 
-            self.cursor_col*2+1
-        );
+        mv(self.free_spots_in_col[col] * 2 + 1, self.cursor_col * 2 + 1);
     }
 
     fn draw_board(&self) {
         mv(2, 0);
 
+        // Top border
         addch(ACS_ULCORNER());
         for _i in 1..Game::COLS {
             addch(ACS_HLINE());
@@ -158,21 +265,13 @@ impl Game {
             addch(ACS_VLINE());
             for elem in row {
                 match elem {
-                    Cell::Some(f) => {
-                        match f {
-                            Faction::Blue => {
-                                attron(COLOR_PAIR(1));
-                                addch('O' as u32);
-                                attroff(COLOR_PAIR(1));
-                            }
-                            Faction::Red => {
-                                attron(COLOR_PAIR(2));
-                                addch('O' as u32);
-                                attroff(COLOR_PAIR(2));
-                            }
-                        }
+                    Cell::Some(f) => match f {
+                        Faction::Blue => addstr_color("O", 1),
+                        Faction::Red => addstr_color("O", 2),
+                    },
+                    Cell::Empty => {
+                        addch(' ' as u32);
                     }
-                    Cell::Empty => {addch(' ' as u32);}
                 }
                 addch(ACS_VLINE());
             }
@@ -182,6 +281,7 @@ impl Game {
                 break;
             }
 
+            // Middle border
             addch(ACS_LTEE());
             for _i in 1..Game::COLS {
                 addch(ACS_HLINE());
@@ -192,6 +292,7 @@ impl Game {
             addch('\n' as u32);
         }
 
+        // Bottom border
         addch(ACS_LLCORNER());
         for _i in 1..Game::COLS {
             addch(ACS_HLINE());
@@ -202,17 +303,21 @@ impl Game {
     }
 }
 
+fn addstr_color(str: &str, color: i16) {
+    attron(COLOR_PAIR(color));
+    addstr(str);
+    attroff(COLOR_PAIR(color));
+}
+
 fn main() {
     let mut game = Game {
         board: [[Cell::Empty; Game::COLS]; Game::ROWS],
         cursor_col: 0,
-        free_spots: [Game::ROWS.try_into().unwrap(); Game::COLS],
+        free_spots_in_col: [Game::ROWS.try_into().unwrap(); Game::COLS],
+        free_spots: Game::COLS * Game::ROWS,
         curr_turn: Faction::Blue,
+        winner: None,
     };
 
     game.play();
-
-    // attron(COLOR_PAIR(2));
-    // mvaddch(0, 0, ACS_DIAMOND());
-    // attroff(COLOR_PAIR(2));
 }
