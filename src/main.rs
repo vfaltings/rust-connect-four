@@ -118,17 +118,32 @@ impl Game {
     }
 
     fn draw_ui(&self) {
+        mvprintw(0, 0, "Currently playing: ");
+        match self.curr_turn {
+            Faction::Blue => {
+                attron(COLOR_PAIR(1));
+                addstr("Blue");
+                attroff(COLOR_PAIR(1));
+            }
+            Faction::Red => {
+                attron(COLOR_PAIR(2));
+                addstr("Red");
+                attroff(COLOR_PAIR(2));
+            }
+        }
+
+        mvprintw(LINES() - 2, 0, "Use A and D to move the cursor, SPACE to place a piece");
         mvprintw(LINES() - 1, 0, "Press Q to exit");
 
         let col: usize = self.cursor_col.try_into().unwrap();
         mv(
-            self.free_spots[col]*2, 
+            self.free_spots[col]*2+1, 
             self.cursor_col*2+1
         );
     }
 
     fn draw_board(&self) {
-        mv(1, 0);
+        mv(2, 0);
 
         addch(ACS_ULCORNER());
         for _i in 1..Game::COLS {
